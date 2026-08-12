@@ -417,5 +417,10 @@ function demarrer() {
 document.addEventListener("DOMContentLoaded", demarrer);
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").then(() => {
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      journal("Nouvelle version détectée — rechargement…");
+      window.location.reload();
+    });
+  }).catch(() => {}));
 }
