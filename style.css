@@ -55,6 +55,23 @@ button.plein, button.clic {
   border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
 }
 button.clic { margin-top: 0; }
+button.neutre { background: #e2e8f0; color: var(--texte); }
+button.danger {
+  margin: 0; padding: 4px 12px; border: 1px solid var(--rouge);
+  background: transparent; color: var(--rouge);
+  border-radius: 999px; cursor: pointer; font-size: 12px;
+}
+label.case { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--texte); margin-top: 14px; }
+label.case input { width: auto; }
+.ligne-gestion {
+  display: grid; grid-template-columns: 1fr 1fr 70px 90px; gap: 8px;
+  align-items: center; margin-bottom: 10px; padding: 10px;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+}
+.ligne-gestion input { padding: 6px 8px; font-size: 13.5px; }
+.ligne-gestion .a-ref { font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.ligne-gestion .actions { display: flex; gap: 6px; }
+.ligne-gestion .mini { padding: 4px 8px; font-size: 12px; }
 button.mini {
   margin: 0; padding: 4px 12px; border: 1px solid var(--orange);
   background: transparent; color: var(--orange);

@@ -57,6 +57,7 @@
   <nav id="nav" class="cache">
     <button data-vue="stock" class="actif">Stock</button>
     <button data-vue="mvt">Mouvement</button>
+    <button data-vue="gestion">Gestion</button>
     <button data-vue="alarmes">Alarmes</button>
     <button data-vue="config">Réglages</button>
   </nav>
@@ -93,6 +94,27 @@
       <h2>Seuils d'alarme</h2>
       <div id="liste-seuils"></div>
       <p class="aide">Alerte envoyée quand le stock passe sous le seuil. État <b class="rouge">CRITIQUE</b> si stock = 0.</p>
+    </div>
+  </section>
+
+  <section id="vue-gestion" class="vue cache panel">
+    <div class="carte">
+      <h2>Gestion du catalogue</h2>
+      <button id="btn-nouveau" class="clic">+ Nouvel article</button>
+      <div id="form-article" class="cache" style="margin-top:12px">
+        <label>Référence</label>
+        <input id="art-ref" placeholder="ex : VIN-001" autocomplete="off">
+        <label>Désignation</label>
+        <input id="art-design" placeholder="ex : Caisse vin rouge (x6)" autocomplete="off">
+        <label>Stock initial (à la création)</label>
+        <input id="art-qte" type="number" min="0" step="1" value="0">
+        <label>Seuil d'alarme</label>
+        <input id="art-seuil" type="number" min="0" step="1">
+        <label class="case"><input type="checkbox" id="art-tous" checked> Appliquer aussi aux 4 restaurants</label>
+        <button id="btn-art-add" class="plein">Ajouter l'article</button>
+        <button id="btn-art-cancel" class="clic neutre">Annuler</button>
+      </div>
+      <div id="liste-gestion" style="margin-top:14px"></div>
     </div>
   </section>
 

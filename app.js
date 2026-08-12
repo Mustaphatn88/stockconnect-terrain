@@ -164,6 +164,56 @@ function envoyerSeuil(ref, min) {
     .catch(() => toast("Hors-ligne : seuil non synchronisé"));
 }
 
+/* ---------- Gestion du catalogue ---------- */
+function envoyerCatalogue(action, donnees) {
+  const message = Object.assign({ action }, donnees);
+  publier("catalogue", message)
+    .then(() => { toast((action === "add" ? "Article ajouté" : "Article supprimé") + " ✓"); demanderSync(); })
+    .catch(() => { mettreEnFile("catalogue", message); toast("Hors-ligne : opération mise en file d'attente"); });
+}
+
+function formArticle() {
+  const vis = !$("form-article").classList.contains("cache");
+  $("form-article").classList.toggle("cache", vis);
+  $("btn-nouveau").textContent = vis ? "+ Nouvel article" : "Fermer le formulaire";
+  if (!vis) { $("art-ref").value = ""; $("art-design").value = ""; $("art-qte").value = "0"; $("art-seuil").value = ""; }
+}
+
+function refreshGestion() {
+  const articles = triArticles();
+  if (!articles.length) {
+    $("liste-gestion").innerHTML = '<p class="aide">Catalogue vide. Ajoutez votre premier article ci-dessus (il sera aussi disponible sur les autres postes).</p>';
+    return;
+  }
+  $("liste-gestion").innerHTML =
+    '<div class="ligne-gestion entete"><b>Réf.</b><b>Désignation</b><b>Seuil</b><b></b></div>' +
+    articles.map((a) =>
+      '<div class="ligne-gestion">' +
+      '<span class="a-ref" title="' + echap(a.ref) + '">' + echap(a.ref) + '</span>' +
+      '<input id="g-design-' + a.ref + '" value="' + echap(a.design || "") + '">' +
+      '<input type="number" min="0" id="g-seuil-' + a.ref + '" value="' + (a.seuil_min ?? cfg.seuilDefaut) + '">' +
+      '<span class="actions">' +
+      '<button class="mini" data-ref="' + a.ref + '" data-act="maj">MàJ</button>' +
+      '<button class="danger" data-ref="' + a.ref + '" data-act="del">Suppr</button>' +
+      '</span></div>').join("");
+  document.querySelectorAll("#liste-gestion button").forEach((b) => {
+    b.addEventListener("click", () => {
+      if (b.dataset.act === "maj") {
+        envoyerCatalogue("add", {
+          ref: b.dataset.ref,
+          design: $("g-design-" + b.dataset.ref).value,
+          seuil_min: Number($("g-seuil-" + b.dataset.ref).value || 0),
+        });
+      } else if (confirm("Supprimer " + b.dataset.ref + " du catalogue ?")) {
+        envoyerCatalogue("del", { ref: b.dataset.ref, tous: $("art-tous").checked });
+        delete etat.articles[b.dataset.ref];
+        sauverEtat();
+        refreshGestion();
+      }
+    });
+  });
+}
+
 /* ---------- Affichage ---------- */
 const $liste = $("liste-articles");
 const $seuils = $("liste-seuils");
@@ -225,6 +275,7 @@ function montrer(vue) {
   document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("actif", b.dataset.vue === vue));
   if (vue === "stock") rafraichir();
   if (vue === "alarmes") refreshSeuils();
+  if (vue === "gestion") refreshGestion();
 }
 
 /* ---------- Toast ---------- */
@@ -274,6 +325,21 @@ function demarrer() {
 
   $("btn-sync").addEventListener("click", () => { demanderSync(); viderFileAttente(); });
   $("btn-vider").addEventListener("click", () => { pending = []; sauverQueue(); });
+
+  $("btn-nouveau").addEventListener("click", formArticle);
+  $("btn-art-cancel").addEventListener("click", formArticle);
+  $("btn-art-add").addEventListener("click", () => {
+    const ref = $("art-ref").value.trim().toUpperCase();
+    if (!ref) { toast("Référence obligatoire"); return; }
+    envoyerCatalogue("add", {
+      ref,
+      design: $("art-design").value.trim(),
+      qte: Number($("art-qte").value || 0),
+      seuil_min: ($("art-seuil").value !== "") ? Number($("art-seuil").value) : undefined,
+      tous: $("art-tous").checked,
+    });
+    formArticle();
+  });
 
   ["sens-in", "sens-out", "sens-set"].forEach((id) => $("sens-" + id.slice(5)).addEventListener("click", () => {
     sens = id.slice(5);
