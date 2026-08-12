@@ -249,8 +249,14 @@ function echap(t) {
 }
 
 function remplirSelectMouvement() {
+  const articles = triArticles();
   const sel = $("mvt-ref");
-  sel.innerHTML = '<option value="">— choisir —</option>' + triArticles().map((a) =>
+  if (!articles.length) {
+    sel.innerHTML = '<option value="">— aucun article —</option>';
+    $("mvt-info").innerHTML = '<span style="color:var(--orange)">Catalogue vide sur ce poste. Onglet Stock → Synchroniser, ou Gestion → Nouvel article.</span>';
+    return;
+  }
+  sel.innerHTML = '<option value="">— choisir —</option>' + articles.map((a) =>
     '<option value="' + a.ref + '">' + a.ref + (a.design ? " — " + a.design : "") + " (stock " + a.qte + ")</option>").join("");
   const a = etat.articles[sel.value];
   $("mvt-info").textContent = a ? "Stock actuel : " + a.qte + " — seuil : " + (a.seuil_min ?? cfg.seuilDefaut) : "";
@@ -275,6 +281,7 @@ function montrer(vue) {
   $("nav").classList.remove("cache");
   document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("actif", b.dataset.vue === vue));
   if (vue === "stock") rafraichir();
+  if (vue === "mvt") remplirSelectMouvement();
   if (vue === "alarmes") refreshSeuils();
   if (vue === "gestion") refreshGestion();
 }
