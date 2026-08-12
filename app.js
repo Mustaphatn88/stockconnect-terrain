@@ -77,7 +77,10 @@ function envoyerHeartbeat() {
   publier("heartbeat", { resto: cfg.restoNom || "Resto " + cfg.resto, ts: Date.now(), par: "terrain", version: APP_VERSION });
 }
 
+let derniereDemandeSync = 0;
 function demanderSync() {
+  if (Date.now() - derniereDemandeSync < 15000) return;
+  derniereDemandeSync = Date.now();
   publier("sync/request", { dev: "terrain-" + cfg.resto });
   $("sync-info").textContent = "demande de synchronisation…";
 }
@@ -253,7 +256,8 @@ function remplirSelectMouvement() {
   const sel = $("mvt-ref");
   if (!articles.length) {
     sel.innerHTML = '<option value="">— aucun article —</option>';
-    $("mvt-info").innerHTML = '<span style="color:var(--orange)">Catalogue vide sur ce poste. Onglet Stock → Synchroniser, ou Gestion → Nouvel article.</span>';
+    $("mvt-info").innerHTML = '<span style="color:var(--orange)">Catalogue vide sur ce poste — chargement automatique…</span>';
+    demanderSync();
     return;
   }
   sel.innerHTML = '<option value="">— choisir —</option>' + articles.map((a) =>
@@ -285,6 +289,18 @@ function montrer(vue) {
   if (vue === "alarmes") refreshSeuils();
   if (vue === "gestion") refreshGestion();
 }
+
+/* ---------- Synchronisation automatique ---------- */
+let autosyncTimer = null;
+function planifierAutosync() {
+  if (autosyncTimer) return;
+  autosyncTimer = setInterval(() => {
+    if (client && client.connected) { demanderSync(); viderFileAttente(); }
+  }, 30000);
+}
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && estConfigure() && client && client.connected) { demanderSync(); viderFileAttente(); }
+});
 
 /* ---------- Toast ---------- */
 let toastTimer = null;
@@ -329,6 +345,7 @@ function demarrer() {
     $("resto-label").textContent = cfg.restoNom;
     connecter();
     montrer("stock");
+    planifierAutosync();
   });
 
   $("btn-sync").addEventListener("click", () => { demanderSync(); viderFileAttente(); });
@@ -362,6 +379,7 @@ function demarrer() {
     rafraichir();
     montrer("stock");
     connecter();
+    planifierAutosync();
   } else {
     montrer("config");
   }
