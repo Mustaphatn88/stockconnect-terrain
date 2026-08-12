@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f5132">
+  <title>StockConnect — Terrain</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="haut">
+    <div class="titre">
+      <h1>StockConnect</h1>
+      <span id="resto-label" class="sous-titre">aucun lieu sélectionné</span>
+    </div>
+    <div class="statut" id="statut" title="État de la connexion">
+      <span class="point" id="point"></span><span id="statut-txt">déconnecté</span>
+    </div>
+  </header>
+
+  <main>
+    <section id="vue-config" class="vue">
+      <div class="carte">
+        <h2>Configuration du poste</h2>
+        <label>Code entité (réseau)</label>
+        <input id="cfg-entite" placeholder="ex : martin-restos" autocomplete="off">
+        <label>Identifiant du restaurant (1-9)</label>
+        <input id="cfg-resto" type="number" min="1" max="9" placeholder="ex : 1">
+        <label>Nom du restaurant</label>
+        <input id="cfg-resto-nom" placeholder="ex : Chez Marco — Lyon">
+        <label>Broker MQTT (WSS)</label>
+        <input id="cfg-broker" value="wss://broker.emqx.io:8084/mqtt" autocomplete="off">
+        <details>
+          <summary>Niveau d'alarme par défaut (seuil)</summary>
+          <input id="cfg-seuil" type="number" min="0" placeholder="ex : 10">
+        </details>
+        <button id="btn-save-cfg" class="plein">Enregistrer et se connecter</button>
+      </div>
+    </section>
+
+    <section id="vue-stock" class="vue cache">
+      <div class="barre-actions">
+        <button id="btn-sync" class="clic">Synchroniser</button>
+        <span id="sync-info" class="disc"></span>
+      </div>
+      <div id="file-attente" class="cache alerte-warn">⏳ Mouvements en attente : <b id="attente-nb">0</b> <button id="btn-vider" class="mini">vider</button></div>
+      <div class="recherche">
+        <input id="recherche" type="search" placeholder="Rechercher une référence…">
+      </div>
+      <div id="liste-articles" class="liste"></div>
+    </section>
+  </main>
+
+  <nav id="nav" class="cache">
+    <button data-vue="stock" class="actif">Stock</button>
+    <button data-vue="mvt">Mouvement</button>
+    <button data-vue="alarmes">Alarmes</button>
+    <button data-vue="config">Réglages</button>
+  </nav>
+
+  <section id="vue-mvt" class="vue cache panel">
+    <div class="carte">
+      <h2>Nouveau mouvement</h2>
+      <label>Article</label>
+      <select id="mvt-ref"></select>
+      <span id="mvt-info" class="disc"></span>
+      <label>Sens</label>
+      <div class="row">
+        <button id="sens-in" class="sens actif">+ Entrée</button>
+        <button id="sens-out" class="sens">− Sortie</button>
+        <button id="sens-set" class="sens">= Comptage</button>
+      </div>
+      <label>Quantité</label>
+      <input id="mvt-qte" type="number" min="1" step="1" value="1">
+      <label>Motif (optionnel)</label>
+      <select id="mvt-motif">
+        <option value="">—</option>
+        <option>Livraison fournisseur</option>
+        <option>Vente</option>
+        <option>Perte / casse</option>
+        <option>Inventaire</option>
+        <option>Transfert entre restos</option>
+      </select>
+      <button id="btn-mvt" class="plein">Envoyer le mouvement</button>
+    </div>
+  </section>
+
+  <section id="vue-alarmes" class="vue cache panel">
+    <div class="carte">
+      <h2>Seuils d'alarme</h2>
+      <div id="liste-seuils"></div>
+      <p class="aide">Alerte envoyée quand le stock passe sous le seuil. État <b class="rouge">CRITIQUE</b> si stock = 0.</p>
+    </div>
+  </section>
+
+  <div id="toast" class="cache"></div>
+  <script src="mqtt.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

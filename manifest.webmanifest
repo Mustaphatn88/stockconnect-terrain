@@ -1,0 +1,14 @@
+{
+  "name": "StockConnect — Terrain",
+  "short_name": "StockConnect",
+  "description": "Suivi de stock des restaurants — mouvements, seuils, alarmes.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f6f5",
+  "theme_color": "#0f5132",
+  "lang": "fr",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
