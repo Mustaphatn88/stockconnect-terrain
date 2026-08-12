@@ -6,7 +6,7 @@ const LS_STATE = "sc_state";
 const LS_QUEUE = "sc_queue";
 
 const $ = (id) => document.getElementById(id);
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.4.0";
 
 const cfg = {
   entite: localStorage.getItem(LS_CFG + "_entite") || "",
@@ -67,7 +67,17 @@ function connecter() {
 function setStatut(etatPoint, texte) {
   $("point").className = "point " + etatPoint;
   $("statut-txt").textContent = texte;
+  journal(texte);
   majDiagnostic();
+}
+
+/* ---------- Journal d'activité (visible dans l'écran Stock) ---------- */
+const journalEntrees = [];
+function journal(texte) {
+  journalEntrees.unshift(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " · " + texte);
+  if (journalEntrees.length > 8) journalEntrees.pop();
+  const zone = $("journal");
+  if (zone) zone.innerHTML = journalEntrees.map((l) => "<div>" + echap(l) + "</div>").join("");
 }
 
 function majDiagnostic() {
@@ -125,10 +135,12 @@ function recevoirEtat(payloadJson) {
     }
     sauverEtat();
     $("sync-info").textContent = nouveaux + " article(s) mis à jour à " + new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    journal(Object.keys(etat.articles).length + " articles en vue · " + nouveaux + " nouveau(x)");
     rafraichir(true);
     toast("Synchronisation OK");
   } catch (e) {
     console.warn("état invalide", e);
+    journal("État reçu illisible");
   }
 }
 
@@ -341,6 +353,8 @@ function estConfigure() { return cfg.entite && cfg.resto; }
 function demarrer() {
   chargerEtat();
   remplirConfig();
+  $("lbl-version").textContent = APP_VERSION;
+  journal("App démarrée (v" + APP_VERSION + ")");
   $("recherche").addEventListener("input", () => rafraichir());
 
   document.querySelectorAll("#nav button").forEach((b) => b.addEventListener("click", () => montrer(b.dataset.vue)));
