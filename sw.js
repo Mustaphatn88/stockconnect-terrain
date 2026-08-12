@@ -1,4 +1,4 @@
-const VERSION = "sc-terrain-v1.0.0";
+const VERSION = "sc-terrain-v1.1.0";
 const APP_SHELL = [
   "./",
   "./index.html",

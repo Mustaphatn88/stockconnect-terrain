@@ -272,6 +272,7 @@ function refreshSeuils() {
 function montrer(vue) {
   document.querySelectorAll(".vue").forEach((s) => s.classList.add("cache"));
   $("vue-" + vue).classList.remove("cache");
+  $("nav").classList.remove("cache");
   document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("actif", b.dataset.vue === vue));
   if (vue === "stock") rafraichir();
   if (vue === "alarmes") refreshSeuils();
