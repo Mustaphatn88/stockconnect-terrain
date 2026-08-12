@@ -67,6 +67,18 @@ function connecter() {
 function setStatut(etatPoint, texte) {
   $("point").className = "point " + etatPoint;
   $("statut-txt").textContent = texte;
+  majDiagnostic();
+}
+
+function majDiagnostic() {
+  const articles = Object.keys(etat.articles).length;
+  const mini = { connecte: "🟢", warn: "🟡", ko: "🔴" }[$("point").className.replace("point ", "")] || "⚪";
+  $("diag-infos").textContent =
+    "Version app : " + APP_VERSION +
+    " | État : " + mini + " " + $("statut-txt").textContent +
+    " | Entité : " + (cfg.entite || "—") + ", resto " + (cfg.resto || "—") +
+    " | Articles sur ce poste : " + articles +
+    " | Broker : " + cfg.broker;
 }
 
 function topicBase() {
@@ -143,8 +155,13 @@ async function viderFileAttente() {
 /* ---------- Mouvements ---------- */
 function envoyerMouvement(ref, monSens, qte, motif) {
   const message = { ref, sens: monSens, qte: Number(qte), motif: motif || "" };
-  if (!ref) { toast("Choisissez un article"); return; }
+  if (!ref) { toast("Saisissez une référence d'article"); return; }
   if (!(qte > 0)) { toast("Quantité invalide"); return; }
+  const a = etat.articles[ref];
+  let design = "";
+  if (a) { design = a.design || ""; }
+  else { etat.articles[ref] = { ref, design: ref, qte: 0, seuil_min: cfg.seuilDefaut, ts: Date.now() }; sauverEtat(); }
+  if (design) message.design = design;
   publier("mvt", message)
     .then(() => { appliquerLocal(message); toast("Mouvement envoyé ✓"); })
     .catch(() => { mettreEnFile("mvt", message); appliquerLocal(message); toast("Hors-ligne : mouvement mis en file d'attente"); });
@@ -152,10 +169,11 @@ function envoyerMouvement(ref, monSens, qte, motif) {
 
 function appliquerLocal(message) {
   const a = etat.articles[message.ref];
-  if (!a) { toast("Article inconnu sur ce poste — synchronisez."); return; }
-  if (message.sens === "in") a.qte += message.qte;
-  else if (message.sens === "out") a.qte = Math.max(0, a.qte - message.qte);
-  else if (message.sens === "set") a.qte = message.qte;
+  if (!a) { etat.articles[message.ref] = { ref: message.ref, design: message.ref, qte: 0, seuil_min: cfg.seuilDefaut, ts: Date.now() }; }
+  const article = etat.articles[message.ref];
+  if (message.sens === "in") article.qte += message.qte;
+  else if (message.sens === "out") article.qte = Math.max(0, article.qte - message.qte);
+  else if (message.sens === "set") article.qte = message.qte;
   sauverEtat();
   rafraichir(true);
 }
@@ -253,17 +271,14 @@ function echap(t) {
 
 function remplirSelectMouvement() {
   const articles = triArticles();
-  const sel = $("mvt-ref");
-  if (!articles.length) {
-    sel.innerHTML = '<option value="">— aucun article —</option>';
-    $("mvt-info").innerHTML = '<span style="color:var(--orange)">Catalogue vide sur ce poste — chargement automatique…</span>';
-    demanderSync();
-    return;
-  }
-  sel.innerHTML = '<option value="">— choisir —</option>' + articles.map((a) =>
+  const liste = $("mvt-articles-list");
+  liste.innerHTML = articles.map((a) =>
     '<option value="' + a.ref + '">' + a.ref + (a.design ? " — " + a.design : "") + " (stock " + a.qte + ")</option>").join("");
-  const a = etat.articles[sel.value];
-  $("mvt-info").textContent = a ? "Stock actuel : " + a.qte + " — seuil : " + (a.seuil_min ?? cfg.seuilDefaut) : "";
+  const refSaisie = $("mvt-ref").value.trim().toUpperCase();
+  const a = etat.articles[refSaisie];
+  $("mvt-info").textContent = a ? "Stock actuel : " + a.qte + " — seuil : " + (a.seuil_min ?? cfg.seuilDefaut)
+    : (articles.length ? "Tapez une référence ou choisissez dans la liste" : "Catalogue vide sur ce poste — chargement automatique…");
+  if (!articles.length) demanderSync();
 }
 
 function refreshSeuils() {
@@ -371,8 +386,8 @@ function demarrer() {
     document.querySelectorAll(".sens").forEach((s) => s.classList.toggle("actif", s.id === id));
   }));
   $("sens-out").textContent = "− Sortie";
-  $("mvt-ref").addEventListener("change", remplirSelectMouvement);
-  $("btn-mvt").addEventListener("click", () => envoyerMouvement($("mvt-ref").value, sens, $("mvt-qte").value, $("mvt-motif").value));
+  $("mvt-ref").addEventListener("input", remplirSelectMouvement);
+  $("btn-mvt").addEventListener("click", () => envoyerMouvement($("mvt-ref").value.trim().toUpperCase(), sens, $("mvt-qte").value, $("mvt-motif").value));
 
   if (estConfigure()) {
     $("resto-label").textContent = cfg.restoNom;

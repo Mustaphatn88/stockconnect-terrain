@@ -38,6 +38,9 @@
           <input id="cfg-seuil" type="number" min="0" placeholder="ex : 10">
         </details>
         <button id="btn-save-cfg" class="plein">Enregistrer et se connecter</button>
+        <div style="border-top:1px solid #e2e8f0;margin-top:14px;padding-top:10px">
+          <p class="aide" id="diag-infos">—</p>
+        </div>
       </div>
     </section>
 
@@ -65,8 +68,9 @@
   <section id="vue-mvt" class="vue cache panel">
     <div class="carte">
       <h2>Nouveau mouvement</h2>
-      <label>Article</label>
-      <select id="mvt-ref"></select>
+      <label>Article — référence, ou choix dans la liste</label>
+      <input id="mvt-ref" list="mvt-articles-list" placeholder="ex : VIN-001" autocomplete="off">
+      <datalist id="mvt-articles-list"></datalist>
       <span id="mvt-info" class="disc"></span>
       <label>Sens</label>
       <div class="row">
