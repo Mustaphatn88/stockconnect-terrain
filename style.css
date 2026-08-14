@@ -143,3 +143,28 @@ button.mini {
   border-radius: 999px; font-size: 13.5px; z-index: 30;
   box-shadow: 0 6px 16px rgba(0,0,0,.35); max-width: 90%;
 }
+#ecran-blocage {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(185, 28, 28, .92);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+#ecran-blocage .blocage {
+  max-width: 420px; width: 100%;
+  border-left: 6px solid var(--rouge);
+}
+#ecran-blocage h2 { color: var(--rouge); }
+#ecran-blocage p { font-size: 14.5px; margin-bottom: 10px; }
+#ecran-blocage .champ { margin: 14px 0 10px; }
+#ecran-blocage .champ label { display: block; font-size: 12.5px; margin-bottom: 6px; font-weight: 600; }
+#ecran-blocage .champ input {
+  width: 100%; box-sizing: border-box; padding: 11px 12px; font-size: 17px;
+  letter-spacing: 4px; text-align: center; font-weight: 700;
+  border: 2px solid var(--bord); border-radius: 10px;
+}
+#ecran-blocage .rangee { margin-bottom: 6px; }
+#ecran-blocage .btn { width: 100%; }
+#ecran-blocage .bouton-lien {
+  margin-top: 14px; background: transparent; color: #fff; border: 1px dashed #fff;
+  font-size: 13px; padding: 9px;
+}

@@ -6,12 +6,14 @@ const LS_STATE = "sc_state";
 const LS_QUEUE = "sc_queue";
 
 const $ = (id) => document.getElementById(id);
-const APP_VERSION = "1.4.0";
+const APP_VERSION = "1.5.0";
 
 const cfg = {
   entite: localStorage.getItem(LS_CFG + "_entite") || "",
   resto: localStorage.getItem(LS_CFG + "_resto") || "",
   restoNom: localStorage.getItem(LS_CFG + "_resto_nom") || "",
+  prenomNom: localStorage.getItem(LS_CFG + "_prenom_nom") || "",
+  instId: localStorage.getItem(LS_CFG + "_instid") || "",
   broker: localStorage.getItem(LS_CFG + "_broker") || "wss://broker.emqx.io:8084/mqtt",
   seuilDefaut: Number(localStorage.getItem(LS_CFG + "_seuil") || 10),
 };
@@ -50,6 +52,8 @@ function connecter() {
   client.on("connect", () => {
     setStatut("ok", "connecté");
     client.subscribe("stockconnect/" + cfg.entite + "/resto/" + cfg.resto + "/sync/state");
+    client.subscribe("stockconnect/" + cfg.entite + "/resto/" + cfg.resto + "/directive");
+    client.subscribe("stockconnect/" + cfg.entite + "/directive");
     envoyerHeartbeat();
     demanderSync();
     viderFileAttente();
@@ -61,7 +65,109 @@ function connecter() {
 
   client.on("message", (topic, payload) => {
     if (topic.endsWith("/sync/state")) recevoirEtat(payload.toString());
+    if (topic.endsWith("/directive")) recevoirDirective(payload.toString());
   });
+}
+
+/* ---------- Blocage du poste (persistant, même hors-ligne) ---------- */
+const LS_BLOCK = LS_CFG + "_bloque";
+const blocage = { ban: null, gel: null };   // { motif, ts } | null
+
+function chargerBlocage() {
+  try {
+    const brut = JSON.parse(localStorage.getItem(LS_BLOCK) || "{}");
+    blocage.ban = brut.ban || null;
+    blocage.gel = brut.gel || null;
+  } catch (e) { blocage.ban = null; blocage.gel = null; }
+  majEcranBlocage();
+}
+
+function sauverBlocage() {
+  localStorage.setItem(LS_BLOCK, JSON.stringify({ ban: blocage.ban, gel: blocage.gel }));
+  majEcranBlocage();
+}
+
+function majEcranBlocage() {
+  const actif = blocage.ban || blocage.gel;
+  if (actif) {
+    const source = blocage.ban ? "POSTE DÉSACTIVÉ par le central" : "MAINTENANCE : postes gelés par le central";
+    $("blocage-titre").textContent = source;
+    $("blocage-sous-titre").textContent = blocage.ban
+      ? "Ce poste a été désactivé par la direction."
+      : "Tous les postes sont temporairement gelés (maintenance ou incident).";
+    $("blocage-motif").textContent = actif.motif || "aucun motif indiqué";
+    $("ecran-blocage").classList.remove("cache");
+  } else {
+    $("ecran-blocage").classList.add("cache");
+  }
+}
+
+function deverrouillerParCode() {
+  const code = $("blocage-code").value.trim();
+  if (!code) { toast("Entrez le code communiqué par la direction"); return; }
+  mettreEnFile("deverrouillage", { code });
+  viderFileAttente();
+  journal("Code " + code + " envoyé au central — validation en cours…");
+}
+
+function demanderReinitialisation() {
+  if (!confirm("Demander au central la réinitialisation complète de ce poste ?\nLa direction devra accepter votre demande.")) return;
+  mettreEnFile("reinitialiser", { motif: "réinitialisation demandée par l'opérateur" });
+  viderFileAttente();
+  journal("Demande de réinitialisation envoyée au central — en attente d'acceptation…");
+}
+
+function reinitialiserPoste() {
+  try {
+    localStorage.clear();
+  } catch (e) {}
+  location.reload();
+}
+
+function recevoirDirective(payloadJson) {
+  try {
+    const directive = JSON.parse(payloadJson);
+    if (directive.type === "bannir") {
+      blocage.ban = { motif: directive.motif || "aucun motif indiqué", ts: Date.now() };
+      sauverBlocage();
+      journal(directive.code_refuse
+        ? "Code de déverrouillage REFUSÉ par le central"
+        : "POSTE DESACTIVE par le central : " + (directive.motif || ""));
+      if (directive.code_refuse) toast("Code refusé — contactez la direction");
+    } else if (directive.type === "reintegrer") {
+      blocage.ban = null;
+      sauverBlocage();
+      journal("Poste déverrouillé (code validé par le central)");
+      toast("Poste déverrouillé");
+    } else if (directive.type === "global_geler") {
+      blocage.gel = { motif: directive.motif || "maintenance", ts: Date.now() };
+      sauverBlocage();
+      journal("GEL GLOBAL : " + (directive.motif || "maintenance"));
+    } else if (directive.type === "global_degeler") {
+      blocage.gel = null;
+      sauverBlocage();
+      journal("Gel global levé");
+      toast("Postes dégelés");
+    } else if (directive.type === "reinitialiser_ok") {
+      journal("Réinitialisation ACCEPTÉE par le central — effacement du poste…");
+      reinitialiserPoste();
+    } else if (directive.type === "reinitialiser_non") {
+      journal("Réinitialisation REFUSÉE par le central");
+      toast("Demande refusée par la direction");
+    } else if (directive.type === "reaffecter") {
+      cfg.resto = String(directive.resto);
+      cfg.restoNom = directive.resto_nom || ("Resto " + directive.resto);
+      localStorage.setItem(LS_CFG + "_resto", cfg.resto);
+      localStorage.setItem(LS_CFG + "_resto_nom", cfg.restoNom);
+      $("resto-label").textContent = cfg.restoNom;
+      journal("Réaffecté au " + cfg.restoNom + " (id " + cfg.resto + ") — reconnexion…");
+      toast("Poste réaffecté : " + cfg.restoNom);
+      connecter();
+      demanderSync();
+    }
+  } catch (e) {
+    console.warn("directive invalide", e);
+  }
 }
 
 function setStatut(etatPoint, texte) {
@@ -96,14 +202,14 @@ function topicBase() {
 }
 
 function envoyerHeartbeat() {
-  publier("heartbeat", { resto: cfg.restoNom || "Resto " + cfg.resto, ts: Date.now(), par: "terrain", version: APP_VERSION });
+  publier("heartbeat", { resto: cfg.restoNom || "Resto " + cfg.resto, ts: Date.now(), par: cfg.prenomNom || "terrain", dev: cfg.instId, version: APP_VERSION });
 }
 
 let derniereDemandeSync = 0;
 function demanderSync() {
   if (Date.now() - derniereDemandeSync < 15000) return;
   derniereDemandeSync = Date.now();
-  publier("sync/request", { dev: "terrain-" + cfg.resto });
+  publier("sync/request", { dev: cfg.instId });
   $("sync-info").textContent = "demande de synchronisation…";
 }
 
@@ -119,6 +225,17 @@ function recevoirEtat(payloadJson) {
   try {
     const reponse = JSON.parse(payloadJson);
     if (!reponse.articles) return;
+    if (reponse.exclu && reponse.exclu.bloque) {
+      blocage.ban = { motif: reponse.exclu.motif || "aucun motif indiqué", ts: Date.now() };
+    } else if (reponse.exclu && reponse.exclu.bloque === false) {
+      blocage.ban = null;
+    }
+    if (reponse.gel === true) {
+      blocage.gel = { motif: "maintenance", ts: Date.now() };
+    } else if (reponse.gel === false) {
+      blocage.gel = null;
+    }
+    sauverBlocage();
     let nouveaux = 0;
     for (const a of reponse.articles) {
       if (!a.ref) continue;
@@ -146,7 +263,7 @@ function recevoirEtat(payloadJson) {
 
 /* ---------- File d'attente hors-ligne ---------- */
 function mettreEnFile(suffixe, objet) {
-  pending.push({ suffixe, objet: Object.assign({ dev: "terrain-" + cfg.resto }, objet) });
+  pending.push({ suffixe, objet: Object.assign({ dev: cfg.instId }, objet) });
   sauverQueue();
 }
 
@@ -306,6 +423,19 @@ function refreshSeuils() {
 }
 
 /* ---------- Navigation ---------- */
+function afficherConfig() {
+  const verrouille = estConfigure();
+  $("cfg-form").classList.toggle("cache", verrouille);
+  $("cfg-verrou").classList.toggle("cache", !verrouille);
+  if (verrouille) {
+    $("verrou-entite").value = cfg.entite;
+    $("verrou-resto").value = cfg.restoNom + " (id " + cfg.resto + ")";
+    $("verrou-operateur").value = cfg.prenomNom + (cfg.instId ? " — " + cfg.instId : "");
+    $("verrou-broker").value = cfg.broker;
+    $("verrou-seuil").value = cfg.seuilDefaut;
+  }
+}
+
 function montrer(vue) {
   document.querySelectorAll(".vue").forEach((s) => s.classList.add("cache"));
   $("vue-" + vue).classList.remove("cache");
@@ -315,6 +445,7 @@ function montrer(vue) {
   if (vue === "mvt") remplirSelectMouvement();
   if (vue === "alarmes") refreshSeuils();
   if (vue === "gestion") refreshGestion();
+  if (vue === "config") afficherConfig();
 }
 
 /* ---------- Synchronisation automatique ---------- */
@@ -322,7 +453,7 @@ let autosyncTimer = null;
 function planifierAutosync() {
   if (autosyncTimer) return;
   autosyncTimer = setInterval(() => {
-    if (client && client.connected) { demanderSync(); viderFileAttente(); }
+    if (client && client.connected) { envoyerHeartbeat(); demanderSync(); viderFileAttente(); }
   }, 30000);
 }
 document.addEventListener("visibilitychange", () => {
@@ -340,10 +471,15 @@ function toast(message) {
 }
 
 /* ---------- Remplissage config + démarrage ---------- */
+function genInstId() {
+  return "inst-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+}
+
 function remplirConfig() {
   $("cfg-entite").value = cfg.entite;
   $("cfg-resto").value = cfg.resto;
   $("cfg-resto-nom").value = cfg.restoNom;
+  $("cfg-prenom-nom").value = cfg.prenomNom;
   $("cfg-broker").value = cfg.broker;
   $("cfg-seuil").value = cfg.seuilDefaut;
 }
@@ -352,6 +488,7 @@ function estConfigure() { return cfg.entite && cfg.resto; }
 
 function demarrer() {
   chargerEtat();
+  chargerBlocage();
   remplirConfig();
   $("lbl-version").textContent = APP_VERSION;
   journal("App démarrée (v" + APP_VERSION + ")");
@@ -363,12 +500,16 @@ function demarrer() {
     cfg.entite = $("cfg-entite").value.trim().replace(/\s+/g, "-").toLowerCase();
     cfg.resto = String(Number($("cfg-resto").value) || "").trim();
     cfg.restoNom = $("cfg-resto-nom").value.trim() || ("Resto " + cfg.resto);
+    cfg.prenomNom = $("cfg-prenom-nom").value.trim() || $("cfg-resto-nom").value.trim() || ("Poste " + cfg.resto);
     cfg.broker = $("cfg-broker").value.trim() || "wss://broker.emqx.io:8084/mqtt";
     cfg.seuilDefaut = Number($("cfg-seuil").value || 10);
     if (!cfg.entite || !cfg.resto) { toast("Entité et restaurent requis"); return; }
+    if (!cfg.instId) cfg.instId = genInstId();
     localStorage.setItem(LS_CFG + "_entite", cfg.entite);
     localStorage.setItem(LS_CFG + "_resto", cfg.resto);
     localStorage.setItem(LS_CFG + "_resto_nom", cfg.restoNom);
+    localStorage.setItem(LS_CFG + "_prenom_nom", cfg.prenomNom);
+    localStorage.setItem(LS_CFG + "_instid", cfg.instId);
     localStorage.setItem(LS_CFG + "_broker", cfg.broker);
     localStorage.setItem(LS_CFG + "_seuil", String(cfg.seuilDefaut));
     $("resto-label").textContent = cfg.restoNom;
@@ -379,6 +520,8 @@ function demarrer() {
 
   $("btn-sync").addEventListener("click", () => { demanderSync(); viderFileAttente(); });
   $("btn-vider").addEventListener("click", () => { pending = []; sauverQueue(); });
+  $("btn-deverrouiller").addEventListener("click", deverrouillerParCode);
+  $("btn-reinitialiser").addEventListener("click", demanderReinitialisation);
 
   $("btn-nouveau").addEventListener("click", formArticle);
   $("btn-art-cancel").addEventListener("click", formArticle);

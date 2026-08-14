@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=1.5.0">
 </head>
 <body>
   <header id="haut">
@@ -23,7 +23,7 @@
 
   <main>
     <section id="vue-config" class="vue">
-      <div class="carte">
+      <div class="carte" id="cfg-form">
         <h2>Configuration du poste</h2>
         <label>Code entité (réseau)</label>
         <input id="cfg-entite" placeholder="ex : martin-restos" autocomplete="off">
@@ -31,6 +31,8 @@
         <input id="cfg-resto" type="number" min="1" max="9" placeholder="ex : 1">
         <label>Nom du restaurant</label>
         <input id="cfg-resto-nom" placeholder="ex : Chez Marco — Lyon">
+        <label>Prénom / nom de l'opérateur</label>
+        <input id="cfg-prenom-nom" placeholder="ex : Karim Benali" autocomplete="off">
         <label>Broker MQTT (WSS)</label>
         <input id="cfg-broker" value="wss://broker.emqx.io:8084/mqtt" autocomplete="off">
         <details>
@@ -41,6 +43,21 @@
         <div style="border-top:1px solid #e2e8f0;margin-top:14px;padding-top:10px">
           <p class="aide" id="diag-infos">—</p>
         </div>
+      </div>
+      <div class="carte cache" id="cfg-verrou">
+        <h2>Réglages verrouillés</h2>
+        <p class="aide">Cette configuration a été définie au premier lancement du poste. Elle est verrouillée pour éviter toute modification accidentelle.</p>
+        <label>Code entité</label>
+        <input id="verrou-entite" readonly disabled>
+        <label>Restaurant</label>
+        <input id="verrou-resto" readonly disabled>
+        <label>Opérateur (ID d'installation)</label>
+        <input id="verrou-operateur" readonly disabled>
+        <label>Broker MQTT</label>
+        <input id="verrou-broker" readonly disabled>
+        <label>Seuil par défaut</label>
+        <input id="verrou-seuil" readonly disabled>
+        <p class="aide">Pour reconfigurer ce poste : réinstallez la PWA ou effacez les données du site.</p>
       </div>
     </section>
 
@@ -127,7 +144,23 @@
   </section>
 
   <div id="toast" class="cache"></div>
-  <script src="mqtt.min.js"></script>
-  <script src="app.js"></script>
+  <div id="ecran-blocage" class="cache">
+    <div class="carte blocage">
+      <h2 id="blocage-titre">Poste désactivé</h2>
+      <p id="blocage-sous-titre">Ce poste a été désactivé par la direction.</p>
+      <p>Motif : <b id="blocage-motif">—</b></p>
+      <p class="aide">Contactez la direction pour toute question. Le poste sera automatiquement réactivé si la direction le réintègre.</p>
+      <div class="champ">
+        <label for="blocage-code">Code de déverrouillage (communiqué par la direction)</label>
+        <input id="blocage-code" inputmode="numeric" maxlength="6" placeholder="—">
+      </div>
+      <div class="rangee">
+        <button id="btn-deverrouiller" class="btn">Déverrouiller</button>
+      </div>
+      <button id="btn-reinitialiser" class="btn bouton-lien">Demander la réinitialisation de ce poste</button>
+    </div>
+  </div>
+  <script src="mqtt.min.js?v=1.5.0"></script>
+  <script src="app.js?v=1.5.0"></script>
 </body>
 </html>
